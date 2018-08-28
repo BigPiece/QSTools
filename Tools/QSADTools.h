@@ -26,13 +26,13 @@
 #define kNotifyKey_ADTool_Interstitial_DidFailPresent @"NoitfyKey_ADTool_Interstitial_DidFailPresent"
 #define kNotifyKey_ADTool_Interstitial_WillDismiss @"NoitfyKey_ADTool_Interstitial_WillDismiss"
 #define kNotifyKey_ADTool_Interstitial_DidDismiss @"NoitfyKey_ADTool_Interstitial_DidDismiss"
+@property (nonatomic, strong, readonly) GADBannerView *bannerView;
 @property (nonatomic, strong) NSString *AdmobAppID;
 @property (nonatomic, strong) NSString *AdmobBannerID;
 @property (nonatomic, strong) NSString *AdmobInterstitialID;
 @property (nonatomic, strong) NSString *AdmobJiLiShiPinID;
 - (void)setupAdmob;
-- (GADBannerView *)creatGADBannerViewWith:(UIViewController *)viewController;
-- (void)reloadADWith:(GADBannerView *)bannerView;
+- (void)addBannerAtBottomWithVC:(UIViewController *)vc;
 - (void)showInterstitialWithVC:(UIViewController *)vc;
 
 #pragma mark -

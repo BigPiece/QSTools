@@ -61,6 +61,7 @@ VungleSDKDelegate
 >
 
 @property (nonatomic, strong) NSMutableArray<GADInterstitial *> *interstitialArr;
+@property (nonatomic, strong) GADBannerView *bannerView;
 @end
 
 
@@ -259,9 +260,35 @@ VungleSDKDelegate
     for (int i = 0 ; i < kInterstitialDefaultCount; i++) {
         [self creatInterstital];
     }
+    self.bannerView = [self creatGADBannerViewWith:nil];
 }
 
 #pragma mark - banner
+- (void)addBannerAtBottomWithVC:(UIViewController *)vc {
+    CGFloat top =
+    (vc.view.frame.size.height + vc.view.frame.origin.y)
+    - vc.navigationController.navigationBar.frame.size.height
+    - [UIApplication sharedApplication].statusBarFrame.size.height
+    - self.bannerView.frame.size.height;
+    [self addBannerWithVC:vc top:top];
+
+}
+
+- (void)addBannerWithVC:(UIViewController *)vc top:(CGFloat)top{
+    if (![vc.view.subviews containsObject:self.bannerView]) {
+        [vc.view addSubview:self.bannerView];
+    }
+    CGRect frame = self.bannerView.frame;
+    frame.origin.y = top;
+    self.bannerView.frame = frame;
+    NSLog(@"bannertop = %f",top);
+    
+    if (self.bannerView.rootViewController != vc) {
+        self.bannerView.rootViewController = vc;
+        [self loadDefaultBannerView];
+    }
+}
+
 - (GADBannerView *)creatGADBannerViewWith:(UIViewController *)viewController {
     if ([QSADTools sharedInstance].firstOpen) {
         return nil;
@@ -279,15 +306,28 @@ VungleSDKDelegate
     // 设置广告位标示
     adBanner.adUnitID = self.AdmobBannerID;
 
-    // 设置广告视图的根控制器
-    adBanner.rootViewController = viewController;
     // 自动加载广告
     adBanner.autoloadEnabled = YES;
     
+//    adBanner.layer.borderColor = [UIColor greenColor].CGColor;
+//    adBanner.layer.borderWidth = 2;
+    
+    // 设置广告视图的根控制器
+    if (viewController) {
+        adBanner.rootViewController = viewController;
+        [self reloadADWith:adBanner];
+    }
     return adBanner;
 }
 
+- (void)loadDefaultBannerView {
+    [self reloadADWith:self.bannerView];
+}
+
 - (void)reloadADWith:(GADBannerView *)bannerView {
+    if (!bannerView) {
+        return;
+    }
     GADRequest *request = [GADRequest request];
     request.testDevices = @[@"4b2ba1691ff9f07e8b6479f8092cffd4",kGADSimulatorID];
     [bannerView loadRequest:request];
