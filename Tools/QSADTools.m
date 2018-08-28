@@ -7,14 +7,60 @@
 //
 
 #import "QSADTools.h"
-#import "ValueDefinitions.h"
+
+/*-----------
+ *1.广告Key值就是默认的ID
+ *2.如果从服务器取不到，就用这个默认的值
+ *3.如果取到了就存在UserDefault里 用key取value值，value则为ID
+ *
+ ------------*/
+
+// API
+#define ADID_API_URL             @"http://67.209.179.95/adid.py"
+#define ADID_API_Arg_Key         @"product"
+#define ADID_API_Arg_Value       @"saolei" //不同的包改这个值
+
+// 友盟key
+#define UMAppKey                 @"58ffe3709f06fd39b7000ff9"
+
+// 谷歌admob
+#define AdmobAppKey              @"ca-app-pub-9904235060835176~5792852540"
+#define AdmobBannerKey           @"ca-app-pub-9904235060835176/3330340739"
+#define AdmobInterstitialKey     @"ca-app-pub-9904235060835176/1597197487"
+#define AdmobJiLiShiPinKey       @"ca-app-pub-9904235060835176/6274809090"
+
+// 腾讯广点通
+#define GDTAppkey                @"1106058190"
+#define GDTPlacementKey          @"1050524163270406"
+#define GDTPlacementKaiPingKey   @"5090128292638298"
+#define GDTPlacementChaPingKey   @"9030321123379438"
+
+// vungle 广告配置
+#define VungleAppKey             @"5974c4ebcb3ec0837a00067f"
+#define VunglePlacementKey       @"DEFAULT45167"
 
 #define kInterstitialDefaultCount (2)
 #define kInterstitialMaxCount (6)
 
-@interface QSADTools()<GADInterstitialDelegate,GADBannerViewDelegate,GADAdSizeDelegate>
-@property (nonatomic, strong) NSMutableArray<GADInterstitial *> *interstitialArr;
+typedef void(^ADCallBackBlockWithParam)(id);
 
+#define _SCREEN_HEIGHT (UIInterfaceOrientationIsLandscape([[UIApplication sharedApplication] statusBarOrientation])?([[UIScreen mainScreen] bounds].size.width):([[UIScreen mainScreen] bounds].size.height))
+#define _SCREEN_WIDTH  (UIInterfaceOrientationIsLandscape([[UIApplication sharedApplication] statusBarOrientation])?([[UIScreen mainScreen] bounds].size.height):([[UIScreen mainScreen] bounds].size.width))
+
+
+@interface QSADTools()
+<
+//Admob
+GADInterstitialDelegate,
+GADBannerViewDelegate,
+GADAdSizeDelegate,
+//GDT
+GDTSplashAdDelegate,
+//Vungle
+VungleSDKDelegate
+>
+
+@property (nonatomic, strong) NSMutableArray<GADInterstitial *> *interstitialArr;
 @end
 
 
@@ -33,17 +79,190 @@
 {
     self = [super init];
     if (self) {
-        [GADMobileAds configureWithApplicationID:adAppID];
-        for (int i = 0 ; i < kInterstitialDefaultCount; i++) {
-            [self creatInterstital];
-        }
+        [self checkOpenCount];
+        // 1.默认的
+        // 2.本地的
+        // 3.网络的
+        [self applyDefaultADID];
+        [self getDefaultADID];
+        [self getRemoteAdID];
     }
     return self;
 }
 
+- (void)checkOpenCount {
+    //是否是第一次安装打开
+    NSInteger openCount = [[NSUserDefaults standardUserDefaults] integerForKey:@"AdOpenCount"];
+    self.firstOpen = openCount == 0;
+    //    tool.firstOpen = YES; //debug 关闭广告
+    [[NSUserDefaults standardUserDefaults] setInteger:(openCount + 1) forKey:@"AdOpenCount"];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 #pragma mark -
+#pragma mark - AD keys
+- (void)applyDefaultADID {
+    self.UMAppID = UMAppKey;
+    self.AdmobAppID = AdmobAppKey;
+    self.AdmobBannerID = AdmobBannerKey;
+    self.AdmobInterstitialID = AdmobInterstitialKey;
+    self.AdmobJiLiShiPinID = AdmobJiLiShiPinKey;
+    self.GDTAppID = GDTAppkey;
+    self.GDTPlacementID = GDTPlacementKey;
+    self.GDTPlacementKaiPingID = GDTPlacementKaiPingKey;
+    self.GDTPlacementChaPingID = GDTPlacementChaPingKey;
+    self.VungleAppID = VungleAppKey;
+    self.VunglePlacementID = VunglePlacementKey;
+}
+
+- (NSArray *)getADKeys {
+    return @[UMAppKey,
+             AdmobAppKey,
+             AdmobBannerKey,
+             AdmobInterstitialKey,
+             AdmobJiLiShiPinKey,
+             GDTAppkey,
+             GDTPlacementKey,
+             GDTPlacementKaiPingKey,
+             GDTPlacementChaPingKey,
+             VungleAppKey,
+             VunglePlacementKey,
+             ];
+}
+
+- (NSArray *)getADValues {
+    return @[self.UMAppID,
+             self.AdmobAppID,
+             self.AdmobBannerID,
+             self.AdmobInterstitialID,
+             self.AdmobJiLiShiPinID,
+             self.GDTAppID,
+             self.GDTPlacementID,
+             self.GDTPlacementKaiPingID,
+             self.GDTPlacementChaPingID,
+             self.VungleAppID,
+             self.VunglePlacementID,
+             ];
+}
+
+- (void)getDefaultADID {
+    NSUserDefaults *userDefault = [NSUserDefaults standardUserDefaults];
+    NSArray *values = [self getADValues];
+    NSArray *keys   = [self getADKeys];
+    for (int i = 0 ; i < keys.count; i++) {
+        NSString *k = keys[i];
+        NSString *v = values[i];
+        NSString *diskValue = [userDefault stringForKey:k];
+        if (diskValue) {
+            v = diskValue;
+        }
+    }
+}
+
+- (void)getRemoteAdID {
+    //http://67.209.179.95/adid.py?product=ruler
+    //{"result":"True","ad_id":"{ "admob" : { "adAppID" : "ca-app-pub-9904235060835176~5792852540", "adBannerID" : "ca-app-pub-9904235060835176/3330340739", "adInterstitialID" : "ca-app-pub-9904235060835176/1597197487", "adJiLiShiPinID" : "ca-app-pub-9904235060835176/6274809090" }, "gdt" : { "gdtAppkey" : "1106058190", "gdtPlacementId" : "1050524163270406", "gdtPlacementChaPingID" : "9030321123379438", "gdtPlacementKaiPingID" : "5090128292638298" }, "umeng" : "58ffe3709f06fd39b7000ff9" } "}
+
+    NSMutableDictionary *params = [NSMutableDictionary dictionary];
+    [params setValue:ADID_API_Arg_Value forKey:ADID_API_Arg_Key];
+    [self sendGET:ADID_API_URL params:params successBlock:^(NSDictionary *responseObject) {
+        NSLog(@"adid:%@",responseObject);
+        //从网络获取成功后存入本地
+        BOOL success = [responseObject[@"result"] isEqualToString:@"True"];
+        if (success) {
+            NSDictionary *adidInfo = responseObject[@"ad_id"];
+            NSDictionary *admob = adidInfo[@"admob"];
+            NSString *adAppID = admob[@"adAppID"];
+            NSString *adBannerID = admob[@"adBannerID"];
+            NSString *adInterstitialID = admob[@"adInterstitialID"];
+            NSString *adJiLiShiPinID = admob[@"adJiLiShiPinID"];
+
+            NSDictionary *gdt = adidInfo[@"gdt"];
+            NSString *gdtAppkey = gdt[@"gdtAppkey"];
+            NSString *gdtPlacementId = gdt[@"gdtPlacementId"];
+            NSString *gdtPlacementChaPingID = gdt[@"gdtPlacementChaPingID"];
+            NSString *gdtPlacementKaiPingID = gdt[@"gdtPlacementKaiPingID"];
+            
+            NSString *umengID = adidInfo[@"umeng"];
+            
+            NSDictionary *vungle = adidInfo[@"vungle"];
+            NSString *vungleAppID = gdt[@"vungleAppID"];
+            NSString *vunglePlacementID = gdt[@"vunglePlacementID"];
+            
+            
+            NSUserDefaults *userDefault = [NSUserDefaults standardUserDefaults];
+            [userDefault setObject:umengID forKey:UMAppKey];
+            [userDefault setObject:adAppID forKey:AdmobAppKey];
+            [userDefault setObject:adBannerID forKey:AdmobBannerKey];
+            [userDefault setObject:adInterstitialID forKey:AdmobInterstitialKey];
+            [userDefault setObject:adJiLiShiPinID forKey:AdmobJiLiShiPinKey];
+            [userDefault setObject:gdtAppkey forKey:GDTAppkey];
+            [userDefault setObject:gdtPlacementId forKey:GDTPlacementKey];
+            [userDefault setObject:gdtPlacementChaPingID forKey:GDTPlacementChaPingKey];
+            [userDefault setObject:gdtPlacementKaiPingID forKey:gdtPlacementKaiPingID];
+            [userDefault setObject:vungleAppID forKey:VungleAppKey];
+            [userDefault setObject:vunglePlacementID forKey:VunglePlacementKey];
+            
+            [userDefault synchronize];
+            //保存到userdefault后，再取出来使用
+            [self getDefaultADID];
+            
+        } else {
+            NSLog(@"response error = %@",responseObject[@"ad_id"]);
+        }
+        
+    } failedBlock:^(NSError *error) {
+        NSLog(@"request error = %@",error);
+    }];
+}
+
+- (void)sendGET:(NSString *)url params:(NSDictionary *)params successBlock:(ADCallBackBlockWithParam)successBlock failedBlock:(ADCallBackBlockWithParam)failedBlock
+{
+    //配置
+    NSURLSessionConfiguration *sessionConfig = [NSURLSessionConfiguration defaultSessionConfiguration];
+    sessionConfig.timeoutIntervalForRequest = 15;
+    AFHTTPResponseSerializer *httpResponseSerializer = [AFHTTPResponseSerializer serializer];
+    httpResponseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"application/json", @"text/json", @"text/javascript",@"text/html", nil];
+    AFHTTPRequestSerializer *httpRequestSerializer = [AFHTTPRequestSerializer serializer];
+    
+    //Session
+    AFURLSessionManager *sessionManager = [[AFURLSessionManager alloc] initWithSessionConfiguration:sessionConfig];
+    sessionManager.responseSerializer = httpResponseSerializer;
+    
+    //Request
+    NSURLRequest *request = [httpRequestSerializer requestWithMethod:@"GET" URLString:url parameters:params error:nil];
+    
+    //DataTask
+    NSURLSessionDataTask *dataTask = [sessionManager dataTaskWithRequest:request uploadProgress:nil downloadProgress:nil completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
+        if (error) {
+            if (failedBlock) {
+                failedBlock(error);
+            }
+        } else {
+            if (successBlock) {
+                NSString *str = [[NSString alloc] initWithData:responseObject encoding:(NSUTF8StringEncoding)];
+                NSData *data = [str dataUsingEncoding:(NSUTF8StringEncoding)];
+                id dict = [NSJSONSerialization JSONObjectWithData:data options:(NSJSONReadingAllowFragments) error:nil];
+                successBlock(dict);
+            }
+        }
+    }];
+    
+    //Resume don·t forget！
+    [dataTask resume];
+}
+
+#pragma mark -
+#pragma mark - Admob
+- (void)setupAdmob {
+    [GADMobileAds configureWithApplicationID:self.AdmobAppID];
+    for (int i = 0 ; i < kInterstitialDefaultCount; i++) {
+        [self creatInterstital];
+    }
+}
+
 #pragma mark - banner
-+ (GADBannerView *)creatGADBannerViewWith:(UIViewController *)viewController {
+- (GADBannerView *)creatGADBannerViewWith:(UIViewController *)viewController {
     if ([QSADTools sharedInstance].firstOpen) {
         return nil;
     }
@@ -51,14 +270,15 @@
     GADAdSize defaultSize = kGADAdSizeSmartBannerPortrait;
     CGSize size = CGSizeFromGADAdSize(defaultSize);
     
-    CGPoint originPoint = CGPointMake((kSCREEN_WIDTH - size.width) * 0.5, kSCREEN_HEIGHT - size.height);
+    CGPoint originPoint = CGPointMake((_SCREEN_WIDTH - size.width) * 0.5, _SCREEN_HEIGHT - size.height);
     GADBannerView *adBanner = [[GADBannerView alloc] initWithAdSize:defaultSize
                                                              origin:originPoint];
     adBanner.delegate = [QSADTools sharedInstance];
     adBanner.adSizeDelegate = [QSADTools sharedInstance];
     adBanner.backgroundColor = [UIColor clearColor];
     // 设置广告位标示
-    adBanner.adUnitID = adBannerID;
+    adBanner.adUnitID = self.AdmobBannerID;
+
     // 设置广告视图的根控制器
     adBanner.rootViewController = viewController;
     // 自动加载广告
@@ -67,43 +287,41 @@
     return adBanner;
 }
 
-+ (void)reloadADWith:(GADBannerView *)bannerView {
+- (void)reloadADWith:(GADBannerView *)bannerView {
     GADRequest *request = [GADRequest request];
     request.testDevices = @[@"4b2ba1691ff9f07e8b6479f8092cffd4",kGADSimulatorID];
     [bannerView loadRequest:request];
 }
 
 - (void)adView:(GADBannerView *)bannerView willChangeAdSizeTo:(GADAdSize)size {
-    kLog(@"willChangeAdSizeTo adSize = %@ frame = %@",NSStringFromGADAdSize(bannerView.adSize),NSStringFromCGRect(bannerView.frame));
+    NSLog(@"willChangeAdSizeTo adSize = %@ frame = %@",NSStringFromGADAdSize(bannerView.adSize),NSStringFromCGRect(bannerView.frame));
 }
 
 - (void)adViewDidReceiveAd:(GADBannerView *)bannerView {
-    kLog(@"adViewDidReceiveAd adSize = %@ frame = %@",NSStringFromGADAdSize(bannerView.adSize),NSStringFromCGRect(bannerView.frame));
+    NSLog(@"adViewDidReceiveAd adSize = %@ frame = %@",NSStringFromGADAdSize(bannerView.adSize),NSStringFromCGRect(bannerView.frame));
 }
 
 - (void)adView:(GADBannerView *)bannerView didFailToReceiveAdWithError:(GADRequestError *)error {
     
-    kLog(@"didFailToReceiveAdWithError: %@",error);
+    NSLog(@"didFailToReceiveAdWithError: %@",error);
 }
 
 - (void)adViewWillPresentScreen:(GADBannerView *)bannerView {
-    kLog(@"adViewWillPresentScreen");
+    NSLog(@"adViewWillPresentScreen");
 }
 
 - (void)adViewWillDismissScreen:(GADBannerView *)bannerView {
-    kLog(@"adViewWillDismissScreen");
+    NSLog(@"adViewWillDismissScreen");
 }
 
 - (void)adViewDidDismissScreen:(GADBannerView *)bannerView {
-    kLog(@"adViewDidDismissScreen");
+    NSLog(@"adViewDidDismissScreen");
 }
 
 - (void)adViewWillLeaveApplication:(GADBannerView *)bannerView {
-    kLog(@"adViewWillLeaveApplication");
+    NSLog(@"adViewWillLeaveApplication");
 }
 
-
-#pragma mark -
 #pragma mark - Interstitial
 //显示插屏广告
 - (void)showInterstitialWithVC:(UIViewController *)vc {
@@ -115,8 +333,6 @@
         [inter presentFromRootViewController:vc];
     }
 }
-
-
 
 //获取一个可用的ad
 - (GADInterstitial *)getReadyInterstitial {
@@ -141,12 +357,12 @@
     if (self.interstitialArr.count >= kInterstitialMaxCount) {
         return nil;
     }
-    GADInterstitial *interstitial = [[GADInterstitial alloc] initWithAdUnitID:adInterstitialID];
+    GADInterstitial *interstitial = [[GADInterstitial alloc] initWithAdUnitID:self.AdmobInterstitialID];
     interstitial.delegate = self;
     [self.interstitialArr addObject:interstitial];
     
     GADRequest *gadRequest = [GADRequest request];
-    gadRequest.testDevices = @[@"4b2ba1691ff9f07e8b6479f8092cffd4",@"f59d2a2ef0adfd9cb29d0d34d0cd3d81",kGADSimulatorID];
+    gadRequest.testDevices = @[@"4b2ba1691ff9f07e8b6479f8092cffd4",kGADSimulatorID];
     [interstitial loadRequest:gadRequest];
     
     return interstitial;
@@ -166,27 +382,199 @@
     }
 }
 
-- (void)interstitialWillPresentScreen:(GADInterstitial *)ad {}
+- (void)interstitialWillPresentScreen:(GADInterstitial *)ad {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kNotifyKey_ADTool_Interstitial_WillPresent object:nil];
+}
 
 // 弹出失败
 - (void)interstitialDidFailToPresentScreen:(GADInterstitial *)ad {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kNotifyKey_ADTool_Interstitial_DidFailPresent object:nil];
     [self completeWithAD:ad];
 }
 
-- (void)interstitialWillDismissScreen:(GADInterstitial *)ad {}
+- (void)interstitialWillDismissScreen:(GADInterstitial *)ad {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kNotifyKey_ADTool_Interstitial_WillDismiss object:nil];
+}
 
 // 广告在屏幕消失
 - (void)interstitialDidDismissScreen:(GADInterstitial *)ad {
+    [[NSNotificationCenter defaultCenter] postNotificationName:kNotifyKey_ADTool_Interstitial_DidDismiss object:nil];
+    
     [self completeWithAD:ad];
 }
 
-#pragma mark -
-#pragma mark - Getter
 - (NSMutableArray<GADInterstitial *> *)interstitialArr {
     if (!_interstitialArr) {
         _interstitialArr = [NSMutableArray array] ;
     }
     return _interstitialArr;
 }
+
+#pragma mark -
+#pragma mark - UMeng
+- (void)setupUMeng {
+    [UMConfigure initWithAppkey:self.UMAppID channel:nil];
+}
+
+#pragma mark -
+#pragma mark - GDT
+- (void)setupGDT {
+    //开屏广告初始化并展示代码
+    GDTSplashAd *splash = [[GDTSplashAd alloc] initWithAppkey:self.GDTAppID placementId:self.GDTPlacementKaiPingID];
+    splash.delegate = self; //设置代理
+    //根据iPhone设备不同设置不同背景图
+    splash.backgroundColor = [UIColor whiteColor];
+    splash.fetchDelay = 2; //开发者可以设置开屏拉取时间，超时则放弃展示
+    self.splash = splash;
+    if (!self.firstOpen) {
+        [self.splash loadAdAndShowInWindow:[UIApplication sharedApplication].keyWindow];
+    }
+}
+
+- (void)tryToShowSplash {
+    // 进入后台超过10分钟 显示开屏广告
+    if (([[NSDate date] timeIntervalSince1970] - [[NSUserDefaults standardUserDefaults] integerForKey:kEnterBackTime]) > 600) {
+        // 显示广告
+        [self.splash loadAdAndShowInWindow:[UIApplication sharedApplication].keyWindow];
+    }
+}
+
+- (void)recordEnterBackgroundTime {
+    [[NSUserDefaults standardUserDefaults] setBool:NO forKey:kShowSplashAD];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    NSInteger enterBackTime = [[NSDate date] timeIntervalSince1970];
+    [[NSUserDefaults standardUserDefaults] setInteger:enterBackTime forKey:kEnterBackTime];
+}
+
+/**
+ *  开屏广告成功展示
+ */
+-(void)splashAdSuccessPresentScreen:(GDTSplashAd *)splashAd {
+    NSLog(@"splashAdSuccessPresentScreen");
+}
+
+/**
+ *  开屏广告展示失败
+ */
+-(void)splashAdFailToPresent:(GDTSplashAd *)splashAd withError:(NSError *)error {
+    NSLog(@"splashAdFailToPresent error = %@",error);
+}
+
+/**
+ *  应用进入后台时回调
+ *  详解: 当点击下载应用时会调用系统程序打开，应用切换到后台
+ */
+- (void)splashAdApplicationWillEnterBackground:(GDTSplashAd *)splashAd {
+    NSLog(@"splashAdApplicationWillEnterBackground");
+}
+
+/**
+ *  开屏广告点击回调
+ */
+- (void)splashAdClicked:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ *  开屏广告将要关闭回调
+ */
+- (void)splashAdWillClosed:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ *  开屏广告关闭回调
+ */
+- (void)splashAdClosed:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ *  开屏广告点击以后即将弹出全屏广告页
+ */
+- (void)splashAdWillPresentFullScreenModal:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ *  开屏广告点击以后弹出全屏广告页
+ */
+- (void)splashAdDidPresentFullScreenModal:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ *  点击以后全屏广告页将要关闭
+ */
+- (void)splashAdWillDismissFullScreenModal:(GDTSplashAd *)splashAd {
+    
+}
+
+/**
+ *  点击以后全屏广告页已经关闭
+ */
+- (void)splashAdDidDismissFullScreenModal:(GDTSplashAd *)splashAd{
+    
+}
+
+/**
+ * 开屏广告剩余时间回调
+ */
+- (void)splashAdLifeTime:(NSUInteger)time{
+    
+}
+
+#pragma mark -
+#pragma mark - Vungle
+- (void)setupVungle {
+    VungleSDK *vungleSdk = [VungleSDK sharedSDK];
+    //启动 vungle 发布商库
+    NSError *error;
+    [vungleSdk startWithAppId:VungleAppKey error:&error];
+    if (error) {
+        NSLog(@"error at start VungleSDK");
+    }
+    dispatch_async(dispatch_get_global_queue(0, 0), ^{
+        [vungleSdk loadPlacementWithID:VunglePlacementKey error:nil];
+    });
+}
+
+- (void)tryToShowVungleWithVC:(UIViewController *)vc
+                  failedBlock:(void(^)(void))failedBlock
+                 successBlock:(void(^)(void))successBlock
+{
+    self.vungleSuccessBlock = successBlock;
+    VungleSDK *vSdk = [VungleSDK sharedSDK];
+    vSdk.delegate = self;
+    
+    if ([vSdk isAdCachedForPlacementID:self.VunglePlacementID]) {
+        // 播放广告
+        [vSdk playAd:vc options:nil placementID:self.VunglePlacementID error:nil];
+        
+    } else {
+        if (failedBlock) {
+            failedBlock();
+        }
+        NSError *errorOnLoadAd;
+        // 加载失败后再次加载
+        [vSdk loadPlacementWithID:self.VunglePlacementID error:&errorOnLoadAd];
+        if (errorOnLoadAd) {
+            NSLog(@"加载视频时出错%@",errorOnLoadAd);
+        }
+    }
+}
+
+// 将要关闭视频广告,给予奖励
+- (void)vungleWillCloseAdWithViewInfo:(VungleViewInfo *)info placementID:(NSString *)placementID
+{
+    if ([info.completedView boolValue]) {
+        if (self.vungleSuccessBlock) {
+            self.vungleSuccessBlock();
+        }
+    }
+}
+
+
+
 
 @end
