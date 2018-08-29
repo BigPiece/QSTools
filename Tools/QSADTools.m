@@ -21,13 +21,13 @@
 #define ADID_API_Arg_Value       @"saolei" //不同的包改这个值
 
 // 友盟key
-#define UMAppKey                 @"58ffe3709f06fd39b7000ff9"
+#define UMAppKey                 @"58a974fb6e27a448540014d0"
 
 // 谷歌admob
-#define AdmobAppKey              @"ca-app-pub-9904235060835176~5792852540"
-#define AdmobBannerKey           @"ca-app-pub-9904235060835176/3330340739"
-#define AdmobInterstitialKey     @"ca-app-pub-9904235060835176/1597197487"
-#define AdmobJiLiShiPinKey       @"ca-app-pub-9904235060835176/6274809090"
+#define AdmobAppKey              @"ca-app-pub-9904235060835176~9149212046"
+#define AdmobBannerKey           @"ca-app-pub-9904235060835176/2963077649"
+#define AdmobInterstitialKey     @"ca-app-pub-9904235060835176/5916544049"
+#define AdmobJiLiShiPinKey       @"ca-app-pub-9904235060835176/1346743644"
 
 // 腾讯广点通
 #define GDTAppkey                @"1106058190"
@@ -265,13 +265,16 @@ VungleSDKDelegate
 
 #pragma mark - banner
 - (void)addBannerAtBottomWithVC:(UIViewController *)vc {
+    CGFloat naviHeight = vc.navigationController.navigationBar.frame.size.height + [UIApplication sharedApplication].statusBarFrame.size.height;
+    if (vc.navigationController.navigationBar.translucent == YES) { //半透明的，不减导航和状态栏高度
+        naviHeight = 0;
+    }
+    
     CGFloat top =
     (vc.view.frame.size.height + vc.view.frame.origin.y)
-    - vc.navigationController.navigationBar.frame.size.height
-    - [UIApplication sharedApplication].statusBarFrame.size.height
+    - naviHeight
     - self.bannerView.frame.size.height;
     [self addBannerWithVC:vc top:top];
-
 }
 
 - (void)addBannerWithVC:(UIViewController *)vc top:(CGFloat)top{
@@ -460,11 +463,11 @@ VungleSDKDelegate
 #pragma mark - GDT
 - (void)setupGDT {
     //开屏广告初始化并展示代码
-    GDTSplashAd *splash = [[GDTSplashAd alloc] initWithAppkey:self.GDTAppID placementId:self.GDTPlacementKaiPingID];
+    GDTSplashAd *splash = [[GDTSplashAd alloc] initWithAppId:self.GDTAppID placementId:self.GDTPlacementKaiPingID];
     splash.delegate = self; //设置代理
     //根据iPhone设备不同设置不同背景图
     splash.backgroundColor = [UIColor whiteColor];
-    splash.fetchDelay = 2; //开发者可以设置开屏拉取时间，超时则放弃展示
+    splash.fetchDelay = 3; //开发者可以设置开屏拉取时间，超时则放弃展示
     self.splash = splash;
     if (!self.firstOpen) {
         [self.splash loadAdAndShowInWindow:[UIApplication sharedApplication].keyWindow];
