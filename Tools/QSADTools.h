@@ -26,6 +26,8 @@
 #define kNotifyKey_ADTool_Interstitial_DidFailPresent @"NoitfyKey_ADTool_Interstitial_DidFailPresent"
 #define kNotifyKey_ADTool_Interstitial_WillDismiss @"NoitfyKey_ADTool_Interstitial_WillDismiss"
 #define kNotifyKey_ADTool_Interstitial_DidDismiss @"NoitfyKey_ADTool_Interstitial_DidDismiss"
+@property (nonatomic, assign) NSInteger tapSkinCount;
+@property (nonatomic, assign) NSInteger tapEleCount;
 @property (nonatomic, strong, readonly) GADBannerView *bannerView;
 @property (nonatomic, strong) NSString *AdmobAppID;
 @property (nonatomic, strong) NSString *AdmobBannerID;
