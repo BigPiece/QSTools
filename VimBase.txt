@@ -4,7 +4,7 @@
    - :wq -> write + quit 存盘+退出
    - dd -> 删除当前行，并把删除的行存到剪贴板里（这不就是剪切一行嘛）
    - p -> 粘贴剪贴板
-   abcdefghijklmnopqrstuvwxyzall_GDT,1100_GAD,1101_GDTabcdefghijklmnopqrstuvwxyz
+   abcdefghijklmnopqrstuvwxyzall_GDTabcdefghijklmnopqrstuvwxyz
 
 第二级 感觉良好
 1. 各种插入模式
